@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyDrop Free — PDF to Anki</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a35;
+    --accent: #7c6ff7;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(52,211,153,0.1);
+    border: 1px solid rgba(52,211,153,0.3);
+    color: var(--green);
+    letter-spacing: 1px;
+  }
+
+  main {
+    flex: 1;
+    max-width: 780px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── SETUP ── */
+  .setup-title { font-size: 32px; font-weight: 700; line-height: 1.2; margin-bottom: 8px; }
+  .setup-title em { color: var(--accent2); font-style: normal; }
+  .setup-sub { color: var(--muted); font-size: 15px; margin-bottom: 36px; line-height: 1.6; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--accent);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .card p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(124,111,247,0.06);
+  }
+
+  .drop-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+  .drop-zone h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .drop-zone p { font-size: 13px; color: var(--muted); margin: 0; }
+
+  #file-input { display: none; }
+
+  .file-chosen {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(52,211,153,0.1);
+    border: 1px solid rgba(52,211,153,0.3);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--green);
+  }
+
+  input[type="text"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+
+  .tip { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    width: 100%;
+    justify-content: center;
+    font-size: 15px;
+    padding: 14px;
+    margin-top: 8px;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent2); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-success { background: var(--green); color: #000; }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── LOADING ── */
+  #loading-screen { text-align: center; padding: 80px 24px; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-screen h2 { font-size: 20px; margin-bottom: 8px; }
+  #loading-screen p { color: var(--muted); font-size: 14px; }
+  #loading-status {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 16px;
+    min-height: 20px;
+  }
+
+  /* ── QUIZ ── */
+  .quiz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .progress-info { font-size: 13px; color: var(--muted); }
+  .progress-info strong { color: var(--text); font-family: var(--mono); }
+
+  .progress-bar-wrap {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 4px;
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+    margin-bottom: 20px;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .q-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .q-source {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .q-text { font-size: 20px; font-weight: 500; line-height: 1.5; color: var(--text); }
+
+  .answer-reveal {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .answer-reveal.visible { display: block; }
+
+  .a-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .a-text { font-size: 15px; line-height: 1.7; color: var(--text); }
+
+  .original-line {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+
+  .reveal-btn {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 13px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .reveal-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .quiz-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+  .quiz-actions .btn { flex: 1; justify-content: center; }
+
+  .skip-btn {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    padding: 8px;
+    transition: color 0.2s;
+  }
+  .skip-btn:hover { color: var(--text); }
+
+  /* ── RESULTS ── */
+  #results-screen { text-align: center; padding: 40px 0; }
+  .result-emoji { font-size: 56px; margin-bottom: 16px; }
+  #results-screen h2 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  #results-screen p { color: var(--muted); font-size: 15px; margin-bottom: 32px; }
+
+  .result-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 12px;
+  }
+
+  .stat-num { font-family: var(--mono); font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .stat-num.green { color: var(--green); }
+  .stat-num.red { color: var(--red); }
+  .stat-num.yellow { color: var(--yellow); }
+  .stat-label { font-size: 12px; color: var(--muted); }
+
+  .anki-status {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    text-align: left;
+    margin-bottom: 20px;
+  }
+  .anki-status h4 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .anki-log {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+
+  .result-btns { display: flex; gap: 10px; }
+  .result-btns .btn { flex: 1; justify-content: center; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 13px;
+    max-width: 320px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.3s;
+    z-index: 999;
+    line-height: 1.5;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">StudyDrop <span>/ Free Edition</span></div>
+  <div class="badge">✓ NO API · NO COST</div>
+</header>
+
+<main>
+
+  <!-- ── SETUP ── -->
+  <div id="setup-screen" class="screen active">
+    <h1 class="setup-title">PDF to Anki,<br><em>completely free</em></h1>
+    <p class="setup-sub">No AI, no API key, no internet needed. Upload your PDF — the tool reads every line, generates questions automatically using smart pattern detection, you quiz yourself, and failed cards go straight to Anki.</p>
+
+    <div class="card">
+      <div class="card-label">Step 1 — Upload PDF</div>
+      <div class="drop-zone" id="drop-zone">
+        <span class="drop-icon">📄</span>
+        <h4>Drop your PDF here</h4>
+        <p>or click to browse · up to 30MB supported</p>
+      </div>
+      <input type="file" id="file-input" accept=".pdf" />
+      <div class="file-chosen" id="file-chosen">
+        <span>✓</span>
+        <span id="file-name"></span>
+        <span id="file-size" style="margin-left:auto;opacity:0.6"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Step 2 — Anki Deck</div>
+      <h3>Where to send failed cards</h3>
+      <p>Make sure Anki is open with AnkiConnect installed (add-on: <strong style="font-family:var(--mono);color:var(--accent2)">2055492159</strong>). Cards you miss will go here:</p>
+      <input type="text" id="deck-input" placeholder="Deck name" value="StudyDrop" />
+      <p class="tip">No Anki? Use the CSV export at the end to import manually.</p>
+    </div>
+
+    <button class="btn btn-primary" id="start-btn" disabled>📖 Generate Questions →</button>
+  </div>
+
+  <!-- ── LOADING ── -->
+  <div id="loading-screen" class="screen">
+    <div class="spinner"></div>
+    <h2>Processing your PDF…</h2>
+    <p>Extracting text and building questions.<br>No internet needed — everything runs in your browser.</p>
+    <div id="loading-status">Starting…</div>
+  </div>
+
+  <!-- ── QUIZ ── -->
+  <div id="quiz-screen" class="screen">
+    <div class="quiz-header">
+      <div class="progress-info">Question <strong id="q-current">1</strong> of <strong id="q-total">0</strong></div>
+      <div class="progress-info">❌ <strong id="q-failed">0</strong> for Anki</div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+    </div>
+
+    <div class="question-card">
+      <div class="q-label">Question</div>
+      <div class="q-source" id="q-source"></div>
+      <div class="q-text" id="question-text">Loading…</div>
+    </div>
+
+    <button class="reveal-btn" id="reveal-btn">👁 Reveal Answer</button>
+
+    <div class="answer-reveal" id="answer-reveal">
+      <div class="a-label">Answer</div>
+      <div class="a-text" id="answer-text"></div>
+      <div class="original-line" id="original-line"></div>
+    </div>
+
+    <div class="quiz-actions" id="verdict-btns" style="display:none">
+      <button class="btn btn-success" id="got-it-btn">✓ Got it</button>
+      <button class="btn btn-danger" id="missed-btn">✗ Send to Anki</button>
+    </div>
+
+    <button class="skip-btn" id="skip-btn">skip this question →</button>
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div id="results-screen" class="screen">
+    <div class="result-emoji" id="result-emoji">🎉</div>
+    <h2 id="result-title">Session Complete</h2>
+    <p id="result-sub">Here's how you did</p>
+
+    <div class="result-stats">
+      <div class="stat-box">
+        <div class="stat-num green" id="stat-got">0</div>
+        <div class="stat-label">Got it</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num red" id="stat-missed">0</div>
+        <div class="stat-label">Missed</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num yellow" id="stat-total">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+    </div>
+
+    <div class="anki-status" id="anki-status" style="display:none">
+      <h4>📦 Anki Import Log</h4>
+      <div class="anki-log" id="anki-log"></div>
+    </div>
+
+    <div class="result-btns">
+      <button class="btn btn-outline" id="export-btn">⬇ Export CSV</button>
+      <button class="btn btn-primary" id="retry-btn">Start Over</button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+// ── PDF.js ──
+const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.3.136/pdf.min.mjs');
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.3.136/pdf.worker.min.mjs';
+
+// ── State ──
+let questions = [];
+let currentIdx = 0;
+let failed = [];
+let skipped = 0;
+let gotIt = 0;
+let pdfFile = null;
+
+// ── Helpers ──
+const $ = id => document.getElementById(id);
+const screens = { setup: $('setup-screen'), loading: $('loading-screen'), quiz: $('quiz-screen'), results: $('results-screen') };
+const show = id => { Object.values(screens).forEach(s => s.classList.remove('active')); screens[id].classList.add('active'); };
+
+const toast = (msg, type = '') => {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  setTimeout(() => el.classList.remove('show'), 3500);
+};
+
+// ── File upload ──
+const dropZone = $('drop-zone');
+const fileInput = $('file-input');
+const startBtn = $('start-btn');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => fileInput.files[0] && handleFile(fileInput.files[0]));
+
+const handleFile = f => {
+  if (f.size > 30 * 1024 * 1024) { toast('File too large — max 30MB', 'error'); return; }
+  if (!f.name.toLowerCase().endsWith('.pdf')) { toast('Please upload a PDF file', 'error'); return; }
+  pdfFile = f;
+  $('file-name').textContent = f.name;
+  $('file-size').textContent = (f.size / 1024 / 1024).toFixed(1) + ' MB';
+  $('file-chosen').style.display = 'flex';
+  startBtn.disabled = false;
+};
+
+// ── Extract PDF text with page info ──
+async function extractPdfPages(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages = [];
+  const total = pdf.numPages;
+
+  for (let i = 1; i <= total; i++) {
+    $('loading-status').textContent = `Reading page ${i} of ${total}…`;
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+
+    // Group items into lines by Y position
+    const lineMap = new Map();
+    for (const item of content.items) {
+      const y = Math.round(item.transform[5]);
+      if (!lineMap.has(y)) lineMap.set(y, []);
+      lineMap.get(y).push(item.str);
+    }
+
+    // Sort lines top to bottom and join words
+    const sortedYs = [...lineMap.keys()].sort((a, b) => b - a);
+    const lines = sortedYs.map(y => lineMap.get(y).join(' ').trim()).filter(l => l.length > 0);
+
+    pages.push({ pageNum: i, lines });
+  }
+
+  return pages;
+}
+
+// ── Question generation engine ──
+function generateQuestions(pages) {
+  const qs = [];
+
+  for (const { pageNum, lines } of pages) {
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li].trim();
+
+      // Skip very short, numeric-only, or header-like lines
+      if (line.length < 20) continue;
+      if (/^\d+$/.test(line)) continue;
+      if (/^(chapter|section|unit|page|figure|table|index)\s/i.test(line) && line.length < 40) continue;
+
+      const generated = extractQuestion(line, pageNum, li);
+      if (generated) qs.push(generated);
+    }
+  }
+
+  return qs;
+}
+
+function extractQuestion(line, pageNum, lineIdx) {
+  const src = `Page ${pageNum}`;
+
+  // ── Pattern 1: Definition "X is a/an/the Y"
+  const defMatch = line.match(/^(.{3,60}?)\s+(?:is|are|was|were)\s+(?:a|an|the|defined as|known as|called)\s+(.+)$/i);
+  if (defMatch) {
+    return {
+      q: `What is ${defMatch[1].trim()}?`,
+      a: `${defMatch[1].trim()} is ${defMatch[2].trim()}`,
+      original: line, src
+    };
+  }
+
+  // ── Pattern 2: "X is defined as Y" / "X refers to Y"
+  const def2 = line.match(/^(.{3,60}?)\s+(?:refers to|means|denotes|describes|involves|consists of|comprises)\s+(.+)$/i);
+  if (def2) {
+    return {
+      q: `What does "${def2[1].trim()}" mean?`,
+      a: def2[2].trim(),
+      original: line, src
+    };
+  }
+
+  // ── Pattern 3: Year / Date facts "X was/happened in YEAR"
+  const yearMatch = line.match(/^(.{5,80}?)\s+(?:in|on|during|by|since|until|from)\s+(\d{4}(?:\s*[-–]\s*\d{2,4})?)\b(.*)$/i);
+  if (yearMatch) {
+    return {
+      q: `When did ${yearMatch[1].trim().replace(/^(the|a|an)\s/i,'')}?`,
+      a: `${yearMatch[2].trim()}${yearMatch[3] ? ' ' + yearMatch[3].trim() : ''}`,
+      original: line, src
+    };
+  }
+
+  // ── Pattern 4: Numbers / quantities "X has/contains N Y"
+  const numMatch = line.match(/^(.{5,70}?)\s+(?:has|have|had|contains?|consists? of|made up of|comprises?)\s+(\d[\d,.]*.+)$/i);
+  if (numMatch) {
+    return {
+      q: `How many / what does ${numMatch[1].trim()} have?`,
+      a: numMatch[2].trim(),
+      original: line, src
+    };
+  }
+
+  // ── Pattern 5: Named after / discovered by / invented by
+  const namedMatch = line.match(/^(.{5,80}?)\s+(?:was\s+)?(?:discovered|invented|founded|created|developed|named|introduced|proposed|designed)\s+(?:by|after)\s+(.+)$/i);
+  if (namedMatch) {
+    return {
+      q: `Who ${namedMatch[0].match(/discovered|invented|founded|created|developed|named|introduced|proposed|designed/i)?.[0] || 'created'} ${namedMatch[1].trim()}?`,
+      a: namedMatch[2].trim(),
+      original: line, src
+    };
+  }
+
+  // ── Pattern 6: Cause and effect "X causes/leads to/results in Y"
+  const causeMatch = line.match(/^(.{5,80}?)\s+(?:causes?|leads? to|results? in|produces?|triggers?|creates?|increases?|decreases?)\s+(.+)$/i);
+  if (causeMatch) {
+    return {
+      q: `What does ${causeMatch[1].trim()} cause or lead to?`,
+      a: causeMatch[2].trim(),
+      original: line, src
+    };
+  }
+
+  // ── Pattern 7: Located / found in / situated
+  const locationMatch = line.match(/^(.{5,70}?)\s+(?:is located|is found|is situated|is based|lies?|sits?)\s+(?:in|at|on|near|within)\s+(.+)$/i);
+  if (locationMatch) {
+    return {
+      q: `Where is ${locationMatch[1].trim()} located?`,
+      a: locationMatch[2].trim(),
+      original: line, src
+    };
+  }
+
+  // ── Pattern 8: Purpose / used for / function
+  const purposeMatch = line.match(/^(.{5,70}?)\s+(?:is used (?:to|for)|functions? (?:to|as)|serves? (?:to|as)|helps? to|allows? (?:us )?to|enables?)\s+(.+)$/i);
+  if (purposeMatch) {
+    return {
+      q: `What is ${purposeMatch[1].trim()} used for?`,
+      a: purposeMatch[2].trim(),
+      original: line, src
+    };
+  }
+
+  // ── Pattern 9: Fill-in-the-blank for notes style (any sentence with key nouns)
+  // Find the most important noun phrase and blank it out
+  const fillMatch = makeFillBlank(line);
+  if (fillMatch) {
+    return { q: fillMatch.q, a: fillMatch.a, original: line, src };
+  }
+
+  return null;
+}
+
+function makeFillBlank(line) {
+  // Find a capitalized proper noun or key term to blank out
+  // Try to find something meaningful to blank — proper nouns, key terms in quotes
+  const quotedMatch = line.match(/"([^"]{3,40})"/);
+  if (quotedMatch) {
+    const blanked = line.replace(quotedMatch[0], '______');
+    return { q: `Fill in: ${blanked}`, a: quotedMatch[1] };
+  }
+
+  // Proper noun (capitalized word not at start of sentence, 4+ chars)
+  const words = line.split(/\s+/);
+  for (let i = 1; i < words.length; i++) {
+    const w = words[i].replace(/[^a-zA-Z]/g, '');
+    if (w.length >= 4 && /^[A-Z]/.test(w) && !/^(The|This|That|These|Those|When|Where|What|Which|Who|How|And|But|For|With|From|Into|Upon|After|Before|During|While|Although|Because|However|Therefore)$/.test(w)) {
+      const blanked = words.map((wd, idx) => idx === i ? '______' : wd).join(' ');
+      return { q: `Fill in: ${blanked}`, a: w };
+    }
+  }
+
+  // Last resort: if line is long enough, ask "What does this describe?"
+  if (line.length > 60) {
+    const half = line.slice(0, Math.floor(line.length / 2));
+    return { q: `Complete this: "${half}…"`, a: line };
+  }
+
+  return null;
+}
+
+// ── Start ──
+startBtn.addEventListener('click', async () => {
+  if (!pdfFile) return;
+  show('loading');
+
+  try {
+    $('loading-status').textContent = 'Reading PDF…';
+    const pages = await extractPdfPages(pdfFile);
+
+    $('loading-status').textContent = 'Generating questions…';
+    await new Promise(r => setTimeout(r, 50)); // let UI update
+
+    questions = generateQuestions(pages);
+
+    if (questions.length === 0) {
+      show('setup');
+      toast('No questions could be generated. Try a text-based PDF (not scanned image).', 'error');
+      return;
+    }
+
+    $('loading-status').textContent = `Generated ${questions.length} questions!`;
+    await new Promise(r => setTimeout(r, 500));
+
+    currentIdx = 0; failed = []; gotIt = 0; skipped = 0;
+    startQuiz();
+  } catch (err) {
+    show('setup');
+    toast('Error: ' + err.message, 'error');
+    console.error(err);
+  }
+});
+
+// ── Quiz ──
+function startQuiz() {
+  show('quiz');
+  $('q-total').textContent = questions.length;
+  loadQuestion();
+}
+
+function loadQuestion() {
+  if (currentIdx >= questions.length) { showResults(); return; }
+
+  const q = questions[currentIdx];
+  $('q-current').textContent = currentIdx + 1;
+  $('q-failed').textContent = failed.length;
+  $('progress-bar').style.width = `${(currentIdx / questions.length) * 100}%`;
+  $('q-source').textContent = q.src;
+  $('question-text').textContent = q.q;
+  $('answer-text').textContent = q.a;
+  $('original-line').textContent = '📄 Original: ' + q.original;
+  $('answer-reveal').classList.remove('visible');
+  $('verdict-btns').style.display = 'none';
+  $('reveal-btn').style.display = 'flex';
+}
+
+$('reveal-btn').addEventListener('click', () => {
+  $('answer-reveal').classList.add('visible');
+  $('verdict-btns').style.display = 'flex';
+  $('reveal-btn').style.display = 'none';
+});
+
+$('got-it-btn').addEventListener('click', () => { gotIt++; currentIdx++; loadQuestion(); });
+$('missed-btn').addEventListener('click', () => { failed.push(questions[currentIdx]); currentIdx++; loadQuestion(); });
+$('skip-btn').addEventListener('click', () => { skipped++; currentIdx++; loadQuestion(); });
+
+// ── Results ──
+async function showResults() {
+  show('results');
+  const total = questions.length - skipped;
+  $('stat-got').textContent = gotIt;
+  $('stat-missed').textContent = failed.length;
+  $('stat-total').textContent = questions.length;
+
+  const pct = total > 0 ? Math.round((gotIt / total) * 100) : 0;
+  $('result-emoji').textContent = pct >= 80 ? '🎉' : pct >= 50 ? '📚' : '💪';
+  $('result-title').textContent = pct >= 80 ? 'Great work!' : pct >= 50 ? 'Keep going!' : 'More practice needed';
+  $('result-sub').textContent = `${pct}% correct · ${failed.length} card${failed.length !== 1 ? 's' : ''} going to Anki`;
+
+  if (failed.length > 0) {
+    $('anki-status').style.display = 'block';
+    await sendToAnki();
+  }
+}
+
+// ── AnkiConnect ──
+async function sendToAnki() {
+  const deck = $('deck-input').value.trim() || 'StudyDrop';
+  const log = $('anki-log');
+  const logLine = msg => { log.innerHTML += msg + '\n'; log.scrollTop = log.scrollHeight; };
+
+  logLine('Connecting to AnkiConnect…');
+
+  try {
+    await ankiRequest('createDeck', { deck });
+    logLine(`✓ Deck "${deck}" ready`);
+  } catch (e) {
+    logLine('✗ Could not connect to Anki.');
+    logLine('→ Make sure Anki is open + AnkiConnect is installed.');
+    logLine('→ Use CSV export below as a backup.');
+    return;
+  }
+
+  let added = 0, dupes = 0;
+  for (const card of failed) {
+    try {
+      await ankiRequest('addNote', {
+        note: {
+          deckName: deck,
+          modelName: 'Basic',
+          fields: { Front: card.q, Back: card.a },
+          options: { allowDuplicate: false },
+          tags: ['StudyDrop', 'auto-generated']
+        }
+      });
+      added++;
+      logLine(`✓ ${card.q.slice(0, 55)}…`);
+    } catch {
+      dupes++;
+      logLine(`↷ Skipped (duplicate): ${card.q.slice(0, 45)}…`);
+    }
+  }
+
+  logLine(`\n✅ Done! ${added} added${dupes ? `, ${dupes} duplicates skipped` : ''}.`);
+  if (added > 0) toast(`${added} cards sent to Anki! 🎴`, 'success');
+}
+
+async function ankiRequest(action, params = {}) {
+  const res = await fetch('http://127.0.0.1:8765', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, version: 6, params })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.result;
+}
+
+// ── Export CSV ──
+$('export-btn').addEventListener('click', () => {
+  const cards = failed.length > 0 ? failed : questions;
+  if (cards.length === 0) { toast('Nothing to export', 'error'); return; }
+  const rows = [['Question', 'Answer', 'Source'], ...cards.map(c => [
+    `"${c.q.replace(/"/g, '""')}"`,
+    `"${c.a.replace(/"/g, '""')}"`,
+    `"${c.src}"`
+  ])];
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `studydrop-${failed.length > 0 ? 'missed' : 'all'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${cards.length} cards as CSV!`, 'success');
+});
+
+// ── Retry ──
+$('retry-btn').addEventListener('click', () => {
+  pdfFile = null; questions = []; currentIdx = 0; failed = []; gotIt = 0; skipped = 0;
+  $('file-chosen').style.display = 'none';
+  $('file-name').textContent = '';
+  fileInput.value = '';
+  startBtn.disabled = true;
+  $('anki-status').style.display = 'none';
+  $('anki-log').innerHTML = '';
+  show('setup');
+});
+</script>
+</body>
+</html>
